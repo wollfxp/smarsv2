@@ -1,88 +1,22 @@
+#include <DigitalIO.h>
+#include <RF24.h>
 
-
-#define joyX A0
-#define joyY A1
-
-#define PWMHIGH 255
-#define PWMLOW 0
+RF24 radio(2, 3); // CE, CSN
+const byte address[6] = "00001";
 
 #define m1Forward 10
 #define m1Backward 9
-
 #define m2Forward 11
 #define m2Backward 13
 
-enum Direction
+struct RadioCommand
 {
-  LEFT,
-  RIGHT,
-  FORWARD,
-  BACKWARD
+  int R;
+  int L;
 };
 
-float mapJoyAxisToOutput(int axisInput, float deadzone, float axisOutput)
-{
-  float axisResolution = 1024.f;
-  float zeroToOneMapping = axisInput / axisResolution;
-  float minusOneToOneMapping = (zeroToOneMapping - 0.5f) / 0.5f;
 
-  if (minusOneToOneMapping < deadzone && minusOneToOneMapping > -deadzone){
-    return 0;
-  }
-  
-  float returnValue = minusOneToOneMapping * axisOutput;
-  return minusOneToOneMapping;
-}
-
-float mapper(int input){
- // 0.0 = 255
- // 0.5 = 0
- // 1.0 = 255
-
-  return abs((input - 512.f) / 512.f * 255.f);
-}
-
-void updateMotorMovement(Direction dir, int value){
-
-  if (dir == FORWARD){
-    analogWrite(m1Forward, value);
-    analogWrite(m1Backward, PWMLOW);
-
-    analogWrite(m2Forward, value);
-    analogWrite(m2Backward, PWMHIGH);
-  }
-
-  if (dir == BACKWARD){
-    analogWrite(m1Forward, value);
-    analogWrite(m1Backward, PWMHIGH);
-
-    analogWrite(m2Forward, value);
-    analogWrite(m2Backward, PWMLOW);
-  }
-
-  if (dir == LEFT){
-    analogWrite(m1Forward, value);
-    analogWrite(m1Backward, PWMLOW);
-
-    analogWrite(m2Forward, value);
-    analogWrite(m2Backward, PWMLOW);
-  }
-
-  if (dir == RIGHT){
-    analogWrite(m1Forward, value);
-    analogWrite(m1Backward, PWMHIGH);
-
-    analogWrite(m2Forward, value);
-    analogWrite(m2Backward, PWMHIGH);
-  }
-  
-}
-
-void stop(){
-  updateMotorMovement(FORWARD, 0);
-}
-
-void updateMotors(int value, bool backward){
+void updateMotors(int value, bool backward) {
   analogWrite(m1Forward, value);
   analogWrite(m1Backward, backward * 255);
 
@@ -91,66 +25,87 @@ void updateMotors(int value, bool backward){
 }
 
 void setup() {
-  Serial.begin(9600);
   
+  Serial.begin(115200);
+  Serial.println("Hello from smars v2 tank");
+  Serial.println("3...");
+  delay(333);
+  Serial.println("2...");
+  delay(333);
+  Serial.println("1...");
+  delay(333);
+  Serial.println("GO!");
+  delay(100);
+  // RADIO START
+
+  if (!radio.begin())
+  {
+    Serial.println("Radio is not responding!");
+    while (1){}
+  } else {
+    Serial.println("Radio OK!");
+  }
+  radio.openReadingPipe(0, address);   //Setting the address at which we will receive the data
+  radio.setPALevel(RF24_PA_MIN);       //You can set this as minimum or maximum depending on the distance between the transmitter and receiver.
+  radio.startListening();              //This sets the module as receiver
+
+  // RADIO END
+
   pinMode(m1Forward, OUTPUT);
   pinMode(m1Backward, OUTPUT);
 
   pinMode(m2Forward, OUTPUT);
   pinMode(m2Backward, OUTPUT);
+
+  updateMotors(0, false);
 }
 
 void loop() {
-  int inputY = 1024 - analogRead(joyY);
-  int inputX = 1024 - analogRead(joyX);
-  
-  delay(50);
-  int yValue = mapper(inputY);
-  int xValue = mapper(inputX);
 
-  bool backward = false;
-  bool left = false;
+  if (radio.available())
+  {
 
-  bool xDeadzone = false;
-  bool yDeadzone = false;
-
-
-  // Y - forward/backward
-  if (yValue < 550 && yValue > 490){
-    yDeadzone = true;
-  }
-
-  if (yValue < 480){
-    backward = true;
-  }
-  
-  if (xValue < 550 && xValue > 490){
-    xDeadzone = true;
-  }
-
-  if (xValue < 480){
-    left = true;
-  }
-
-  //float motorSpeed = abs((jvalue - 512.f) / 512.f * 255.f);
-
-  Direction dir;
-
-  if (xDeadzone){
-    if (backward){
-      dir = BACKWARD;
-    } else {
-      dir = FORWARD;
+  if(radio.getDynamicPayloadSize() < sizeof(RadioCommand)){
+      Serial.println("garbage");
+      // Corrupt payload has been flushed
+      return;
     }
-    updateMotorMovement(dir, mapper(yValue));
+    
+    RadioCommand r;
+    radio.read(&r, sizeof(RadioCommand));
+    Serial.println("Got R" + String(r.R));
+    Serial.println("Got L" + String(r.L));
+    
+    return;
+    
+//    if (yValue == -1)
+//    {
+//      updateMotors(0,false);
+//      return; // NO INPUT, IDLE
+//    }
+//
+//    bool backward = false;
+//
+//    if (yValue < 480) {
+//      backward = true;
+//    }
+//
+//    float motorSpeed = abs((yValue - 512.f) / 512.f * 255.f);
+//
+//    if (motorSpeed < 50) {
+//      updateMotors(0, backward);
+//      delay(50);
+//      Serial.println("too slow!"); 
+//      return;
+//    }
+//
+//    delay(5);
+//    Serial.println("Motor speed: " + String((int)motorSpeed) + " DIR: " + (backward ? "BACK" : "FRWRD"));
+//    updateMotors(motorSpeed, backward);
   }
-
-  if (yDeadzone){
-    if (left){
-      dir = LEFT;
-    } else {
-      dir = RIGHT;
-    }
-    updateMotorMovement(dir, mapper(xValue));
+  else {
+    //delay(200);
+    //Serial.println("Waiting for radio...");
+    //updateMotors(0, false); // STOP
   }
 }

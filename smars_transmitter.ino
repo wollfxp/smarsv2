@@ -8,9 +8,11 @@ const int joyAxisX = A0;
 const int joyAxisY = A1;
 const int deadzone = 16;
 
-float mapJoyAxis(int rawInput) {
-  return abs((rawInput - 512.f) / 512.f * 255.f);
-}
+struct RadioCommand
+{
+  int R;
+  int L;
+};
 
 void setup() {
   Serial.begin(115200);
@@ -30,24 +32,27 @@ void setup() {
 }
 void loop()
 {
-//  int xValue = getValueFromAxisPin(joyAxisX);
-//  int yValue = getValueFromAxisPin(joyAxisY);
-  //int xValue = analogRead(joyAxisX);
-  int yValue = analogRead(joyAxisY);
+  int xValue = map(analogRead(joyAxisX), 0,1024, -100, 100);
+  int yValue = map(analogRead(joyAxisY), 0,1024, -100, 100);
 
-  //radio.write(&xValue, sizeof(xValue));  //Sending the message to receiver
-  radio.write(&yValue, sizeof(yValue));  //Sending the message to receiver
-  Serial.println("Sending " + String(yValue));
-  delay(50);
-}
-
-int getValueFromAxisPin(int pin)
-{
-  int value = analogRead(pin);
-  if (value > (512 - deadzone) && value < (512 + deadzone))
-  {
-    // deadzone, return -1;
-    return -1;
+  if (abs(xValue) <= deadzone){
+    xValue = 0;
   }
-  return mapJoyAxis(value);
+
+  if (abs(yValue) <= deadzone){
+    yValue = 0;
+  }
+
+  // https://home.kendra.com/mauser/Joystick.html
+  xValue *= -1;
+  int V = (100-abs(xValue)) * (yValue/100) + yValue;
+  int W = (100-abs(yValue)) * (xValue/100) + xValue;
+  int R = (V+W)/2;
+  int L = (V-W)/2;
+
+  RadioCommand r;
+  r.R = R;
+  r.L = L;
+
+  bool sent = radio.write(&r, sizeof(RadioCommand));  
 }
