@@ -1,9 +1,9 @@
 # SMARS v2 firmware
-SMARS robot firmware with radio control
+SMARS robot firmware with radio control [SMARS project on Thingiverse](https://www.thingiverse.com/thing:2662828)
 
 ## smars_v2.ino
 SMARS firmware for the robot itself.  
-Uses 9V battery for power, will soon be replaced by DIY 18650 power-bank.
+Uses 9V battery for power, will soon be replaced by DIY 18650 power-bank. Motor shield is on top of the mainboard, then radio adapter is plugged into pins D2-D6.
 
 Uses Arduino Uno, nRF24L01 radio module and RobotDyn L298P Motor shield clone. Radio is connected via software SPI (DigitalIO.h + RF24.h in SOFT_SPI mode) as hardware spi pins are occupied by the motor shield (very unhappy about this, but it works).
 Radio Pinout:
@@ -14,7 +14,8 @@ Radio Pinout:
 | SCK           | D4 |
 | MOSI          | D5 |
 | MISO          | D6 |
-| IRQ           | Not connected |
+| IRQ           | Not connected |  
+
 I have it connected to the pins with RobotDyn nRF24L01 adapter, it also handles power conversion, so I can feed it 5V from Arduino.
 
 ## smars_transmitter.ino
