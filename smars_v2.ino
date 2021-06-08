@@ -71,37 +71,25 @@ void loop() {
       return;
     }
     
-    RadioCommand r;
-    radio.read(&r, sizeof(RadioCommand));
-    Serial.println("Got R" + String(r.R));
-    Serial.println("Got L" + String(r.L));
-    
-    return;
-    
-//    if (yValue == -1)
-//    {
-//      updateMotors(0,false);
-//      return; // NO INPUT, IDLE
-//    }
-//
-//    bool backward = false;
-//
-//    if (yValue < 480) {
-//      backward = true;
-//    }
-//
-//    float motorSpeed = abs((yValue - 512.f) / 512.f * 255.f);
-//
-//    if (motorSpeed < 50) {
-//      updateMotors(0, backward);
-//      delay(50);
-//      Serial.println("too slow!"); 
-//      return;
-//    }
-//
-//    delay(5);
-//    Serial.println("Motor speed: " + String((int)motorSpeed) + " DIR: " + (backward ? "BACK" : "FRWRD"));
-//    updateMotors(motorSpeed, backward);
+    RadioCommand cmd;
+    radio.read(&cmd, sizeof(RadioCommand));
+    Serial.println("Got R" + String(cmd.R));
+    Serial.println("Got L" + String(cmd.L));
+
+    int r = cmd.R;
+    int l = cmd.L;
+
+    if (r == 0 && l == 0)
+    {
+      updateMotors(0,false);
+      return; // NO INPUT, IDLE
+    }
+
+    analogWrite(m1Forward, map(abs(r), 0, 100, 0, 255));
+    analogWrite(m1Backward, r < 0 ? true : false);
+  
+    analogWrite(m2Forward, map(abs(l), 0, 100, 0, 255));
+    analogWrite(m2Backward, l < 0 ? false : true);
   }
   else {
     //delay(200);
