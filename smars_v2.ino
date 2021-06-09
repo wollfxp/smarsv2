@@ -9,12 +9,16 @@ const byte address[6] = "00001";
 #define m2Forward 11
 #define m2Backward 13
 
+enum MOTOR
+{
+  LEFT, RIGHT
+};
+
 struct RadioCommand
 {
   int R;
   int L;
 };
-
 
 void updateMotors(int value, bool backward) {
   analogWrite(m1Forward, value);
@@ -25,7 +29,7 @@ void updateMotors(int value, bool backward) {
 }
 
 void setup() {
-  
+
   Serial.begin(115200);
   Serial.println("Hello from smars v2 tank");
   Serial.println("3...");
@@ -41,7 +45,7 @@ void setup() {
   if (!radio.begin())
   {
     Serial.println("Radio is not responding!");
-    while (1){}
+    while (1) {}
   } else {
     Serial.println("Radio OK!");
   }
@@ -60,36 +64,50 @@ void setup() {
   updateMotors(0, false);
 }
 
+void setMotorSpeed(MOTOR motor, int speed)
+{
+  int speedPin, reversePin;
+  if (motor == MOTOR::RIGHT) {
+    speedPin = m1Forward;
+    reversePin = m1Backward;
+  } else {
+    speedPin = m2Forward;
+    reversePin = m2Backward;
+  }
+
+  bool reverse = (speed < 0);
+
+  analogWrite(speedPin, abs(speed));
+  analogWrite(reversePin, reverse * 255);
+}
+
 void loop() {
 
   if (radio.available())
   {
 
-  if(radio.getDynamicPayloadSize() < sizeof(RadioCommand)){
+    if (radio.getDynamicPayloadSize() < sizeof(RadioCommand)) {
       Serial.println("garbage");
       // Corrupt payload has been flushed
       return;
     }
-    
+
     RadioCommand cmd;
     radio.read(&cmd, sizeof(RadioCommand));
-    Serial.println("Got R" + String(cmd.R));
-    Serial.println("Got L" + String(cmd.L));
+    Serial.println("Got R" + String(cmd.R) + " L" + String(cmd.L));
+    //Serial.println(String(cmd.R));
 
     int r = cmd.R;
     int l = cmd.L;
 
     if (r == 0 && l == 0)
     {
-      updateMotors(0,false);
+      updateMotors(0, false);
       return; // NO INPUT, IDLE
     }
 
-    analogWrite(m1Forward, map(abs(r), 0, 100, 0, 255));
-    analogWrite(m1Backward, r < 0 ? true : false);
-  
-    analogWrite(m2Forward, map(abs(l), 0, 100, 0, 255));
-    analogWrite(m2Backward, l < 0 ? false : true);
+    setMotorSpeed(MOTOR::LEFT, l);
+    setMotorSpeed(MOTOR::RIGHT, r * -1);
   }
   else {
     //delay(200);
